@@ -1,0 +1,12 @@
+Para armar el circuito físico y la maqueta indicadora del seguimiento de la planta, se requieren los siguientes componentes:
+Placa Arduino: Arduino Uno R3 o Arduino Nano (ambos compatibles con comunicación USB Serie).   
+Cable de Datos USB: Cable USB tipo A a B (para Uno) o Mini-USB / Micro-USB (para Nano) para conectar la placa a la computadora y alimentarla.  
+Servomotor SG90 (o similar de 9 g): Actuador que rotará físicamente (0°, 45°, 90°, 135°) para señalar la fase de la planta en la maqueta.   
+Cables Jumpers (Macho-Macho o Macho-Hembra): 3 cables para realizar las conexiones de la placa al servomotor.
+Protoboard (Opcional): para asegurar las conexiones de alimentación.
+Webcam: Cámara web integrada o USB enfocada directamente hacia la maceta o la planta. 
+
+Esquema de Conexión en Arduino
+Cable Rojo del Servo (Voltaje): Conectar al pin 5V de la placa Arduino.
+Cable Marrón / Negro del Servo (Tierra): Conectar a cualquier pin GND de la placa.
+Cable Naranja / Amarillo del Servo (Señal): Conectar al Pin Digital 9 de la placa Arduino.

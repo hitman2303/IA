@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TP Final IA - Sistema Experto Botánico Integrado</title>
+    
+    <!-- Librerías de la Cátedra (Gorosito) -->
+    <script src="https://gorosito.red/dame/uutiles.js"></script>
+    <script src="https://gorosito.red/componentes"></script>
+    <script src="https://gorosito.red/dame/uutiles.jqm.js"></script>
+
+    <!-- Estilos de jQuery Mobile y FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.3.0/css/font-awesome.min.css" />
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jquerymobile/1.4.5/jquery.mobile.min.css" />
+    <link rel="stylesheet" href="https://gorosito.red/bloques/apps/vendor/themes/themario2.min.css">
+    <link rel="stylesheet" href="https://gorosito.red/bloques/apps/vendor/themes/jquery.mobile.icons.min.css">
+
+    <!-- TensorFlow.js y Teachable Machine -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquerymobile/1.4.5/jquery.mobile.min.js"></script>
+
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f7f6; }
+        .panel { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-top: 15px; }
+        .badge { font-weight: bold; color: #007bff; font-size: 1.1em; }
+        .btn-verde { background: #28a745 !important; color: white !important; font-size: 1em; text-shadow: none !important; }
+        
+        /* Contenedor flexible para la cámara y el servo virtual */
+        .flex-container { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; justify-content: center; }
+        
+        /* Caja descriptiva del Sistema Experto (Punto A y C) */
+        .caja-descripcion {
+            background-color: #eef9f1;
+            border-left: 5px solid #28a745;
+            padding: 12px 15px;
+            margin-top: 12px;
+            border-radius: 4px;
+        }
+        .caja-descripcion h4 { margin: 0 0 8px 0; color: #1e7e34; }
+        .caja-descripcion p { margin: 0; line-height: 1.5; color: #333; }
+
+        /* Estilos del Simulador Gráfico del Servomotor */
+        .servo-simulador {
+            width: 220px;
+            background: #ffffff;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        .dial-container {
+            position: relative;
+            width: 180px;
+            height: 100px;
+            margin: 10px auto;
+            overflow: hidden;
+        }
+        .dial-arc {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            border: 15px solid #e0e0e0;
+            border-top-color: #28a745;
+            border-right-color: #007bff;
+            box-sizing: border-box;
+        }
+        .aguja {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 4px;
+            height: 80px;
+            background-color: #dc3545;
+            transform-origin: bottom center;
+            transform: translateX(-50%) rotate(-90deg);
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 2px;
+        }
+        .pivote {
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            width: 16px;
+            height: 16px;
+            background: #333;
+            border-radius: 50%;
+            transform: translateX(-50%);
+        }
+
+        /* Formato para el informe de la pestaña Punto D */
+        .informe-d { background-color: #eef9f1; border-left: 5px solid #28a745; padding: 15px; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <section class="pagina" data-role="page" id="pagina-principal" data-ajax="false">
+        
+        <header class="encabezado" data-role="header" data-theme="b">
+            <h1>TP Final - Inteligencia Artificial</h1>
+            
+            <!-- Barra de Pestañas (Tabs) de jQuery Mobile -->
+            <div data-role="navbar">
+                <ul>
+                    <li><a href="#pestana-a-c" class="ui-btn-active ui-state-persist" data-icon="camera">Punto A + C (Reconocimiento & Hardware)</a></li>
+                    <li><a href="#pestana-d" data-icon="comment">Punto D (Sistema Experto Aprendiz)</a></li>
+                </ul>
+            </div>
+        </header>
+
+        <main class="principal responsive" data-role="content">
+
+            <!-- ================================================================= -->
+            <!-- PESTAÑA 1: PUNTO A + PUNTO C (VISIÓN RECONOCIMIENTO Y ARDUINO/SIMULADOR) -->
+            <!-- ================================================================= -->
+            <div id="pestana-a-c">
+                
+                <!-- Componente de la Cátedra para Comunicación Serie USB -->
+                <arduino-usb id="IdArduino" eventos="fnArduino"></arduino-usb>
+
+                <div class="panel">
+                    <button type="button" class="btn-verde" onclick="initCamara()">1. Iniciar Cámara y Modelo de IA</button>
+                    
+                    <div class="flex-container" style="margin-top: 15px;">
+                        <!-- Contenedor WebCam -->
+                        <div>
+                            <div id="webcam-container"></div>
+                        </div>
+
+                        <!-- Simulador Virtual del Servomotor -->
+                        <div class="servo-simulador">
+                            <h3>Servo Virtual</h3>
+                            <div class="dial-container">
+                                <div class="dial-arc"></div>
+                                <div id="agujaServo" class="aguja"></div>
+                                <div class="pivote"></div>
+                            </div>
+                            <p style="margin: 5px 0;">Ángulo: <b id="lblAnguloSimulado">0°</b></p>
+                            <small style="color: #666;">(0° Semilla | 45° Brote | 90° Joven | 135° Adulta)</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Explicación de la fase debajo de la cámara -->
+                    <div class="caja-descripcion">
+                        <h4 id="txtTituloFase">Fase no detectada</h4>
+                        <p id="txtDetalleFase">Inicie la cámara y enfoque una tarjeta o planta para comenzar el análisis.</p>
+                    </div>
+
+                    <!-- Porcentajes de certeza de Teachable Machine -->
+                    <div id="label-container" style="margin-top: 12px;"></div>
+                </div>
+
+                <div class="panel">
+                    <h2>Sistema Experto: Monitoreo & Hardware (Punto C)</h2>
+                    <p>Estado Arduino Físico: <b id="lblConexion">Desconectado (Modo Simulación Activo)</b></p>
+                    <p>Fase Detectada: <span id="lblFase" class="badge">Esperando cámara...</span></p>
+                    <hr>
+                    <h3>Recordatorio de Cuidado:</h3>
+                    <div id="txtRecordatorio">Esperando lectura de imagen...</div>
+                </div>
+            </div>
+
+            <!-- ================================================================= -->
+            <!-- PESTAÑA 2: PUNTO D (SISTEMA EXPERTO DE ADIVINANZA Y APRENDIZAJE)   -->
+            <!-- ================================================================= -->
+            <div id="pestana-d" style="display: none;">
+                <div class="panel">
+                    <h2>Sistema Experto ConversacionalBotánico</h2>
+                    <p>El sistema responderá preguntas de SÍ o NO para inferir el tipo o la etapa de tu planta. Si falla, ¡aprenderá de tus respuestas y lo guardará en la base de datos!</p>
+                    <button type="button" class="btn-verde" onclick="fnIniciarInferenciaD()">Iniciar Preguntas / Diagnóstico</button>
+                </div>
+
+                <div class="panel">
+                    <h3>Informe del Diagnóstico Generado</h3>
+                    <div id="idInformeD">
+                        <i>Hacé clic en el botón para comenzar el test de preguntas...</i>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h3>Base de Conocimiento Aprendida</h3>
+                    <div id="idHistorialD"></div>
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="pie de pagina" data-role="footer" data-position="fixed" data-theme="b">
+            <h3>Trabajo Práctico Integrador &copy; 2026</h3>
+        </footer>
+
+    </section>
+
+    <!-- LOGICA JAVASCRIPT DEL TRABAJO PRÁCTICO -->
+    <script>
+        // Manejo manual de visibilidad de Pestañas con jQuery Mobile
+        $(document).on("pagecreate", "#pagina-principal", function() {
+            $("a[href='#pestana-a-c']").on("click", function(e) {
+                e.preventDefault();
+                $("#pestana-a-c").show();
+                $("#pestana-d").hide();
+            });
+            $("a[href='#pestana-d']").on("click", function(e) {
+                e.preventDefault();
+                $("#pestana-d").show();
+                $("#pestana-a-c").hide();
+            });
+        });
+
+        // =====================================================================
+        // CÓDIGO PUNTO A Y PUNTO C (TEACHABLE MACHINE + SERVO SIMULADO/ARDUINO)
+        // =====================================================================
+        const URL_MODELO = "https://teachablemachine.withgoogle.com/models/XHn6sjvSp/";
+        
+        let model, webcam, labelContainer, maxPredictions;
+        let ultimaFaseProcesada = "";
+        let arduinoConectado = false;
+
+        const baseConocimientoAC = {
+            "1": {
+                titulo: "Fase 0 - Semilla",
+                angulo: 0,
+                faseNombre: "Semilla",
+                descripcion: "En esta fase la planta es una semilla. Esta fase durará entre 1 semana a 3 semanas aproximadamente, tenés que estar atento a cómo crecen las raíces y mantener el sustrato húmedo sin anegarlo.",
+                recordatorio: "Mantener en lugar protegido y templado. No requiere exposición a luz solar directa todavía."
+            },
+            "2": {
+                titulo: "Fase 1 - Brote",
+                angulo: 45,
+                faseNombre: "Brote",
+                descripcion: "En esta fase aparecen las primeras hojas cotiledóneas y el tallo inicial. Esta etapa dura entre 1 y 2 semanas. Es vital asegurar luz suave para evitar que el tallo se estire débilmente.",
+                recordatorio: "Proporcionar luz indirecta constante. Proteger de corrientes bruscas de aire."
+            },
+            "3": {
+                titulo: "Fase 2 - Planta Joven",
+                angulo: 90,
+                faseNombre: "Planta Joven",
+                descripcion: "En esta fase la planta desarrolla sus hojas verdaderas y consolida el sistema radicular. Durará entre 3 y 5 semanas. El crecimiento vegetativo es acelerado.",
+                recordatorio: "Incrementar horas de sol directo. Evaluar la colocación de un tutor para guiar la estructura vertical."
+            },
+            "4": {
+                titulo: "Fase 3 - Planta Adulta",
+                angulo: 135,
+                faseNombre: "Planta Adulta",
+                descripcion: "La planta ha alcanzado su madurez estructural y entra en etapa de floración o fructificación. Esta fase se mantiene durante semanas o meses según la especie.",
+                recordatorio: "Revisar periódicamente el envés de las hojas para prevenir plagas y mantener el ciclo regular de riego y luz."
+            }
+        };
+
+        function fnArduino(_evento) {
+            console.log("Estado de conexión Arduino:", _evento);
+            arduinoConectado = true;
+            lblConexion.innerText = typeof _evento === 'string' ? _evento : "Conectado / Activo";
+        }
+
+        async function initCamara() {
+            if (model) return; // Evita reinicializaciones dobles
+
+            const modelURL = URL_MODELO + "model.json";
+            const metadataURL = URL_MODELO + "metadata.json";
+
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+
+            const flip = true; 
+            webcam = new tmImage.Webcam(240, 240, flip);
+            await webcam.setup();
+            await webcam.play();
+            window.requestAnimationFrame(loopCamara);
+
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
+            labelContainer = document.getElementById("label-container");
+            for (let i = 0; i < maxPredictions; i++) {
+                labelContainer.appendChild(document.createElement("div"));
+            }
+        }
+
+        async function loopCamara() {
+            webcam.update();
+            await predictCamara();
+            window.requestAnimationFrame(loopCamara);
+        }
+
+        async function predictCamara() {
+            const prediction = await model.predict(webcam.canvas);
+            let claseGanadora = "";
+            let mayorProbabilidad = 0;
+
+            for (let i = 0; i < maxPredictions; i++) {
+                const prob = prediction[i].probability;
+                const nombreClase = prediction[i].className;
+
+                labelContainer.childNodes[i].innerHTML = nombreClase + ": " + (prob * 100).toFixed(1) + "%";
+
+                if (prob > mayorProbabilidad) {
+                    mayorProbabilidad = prob;
+                    claseGanadora = nombreClase;
+                }
+            }
+
+            if (mayorProbabilidad > 0.50 && claseGanadora !== "") {
+                evaluarSistemaExpertoAC(claseGanadora);
+            }
+        }
+
+        function evaluarSistemaExpertoAC(claseDetectada) {
+            if (!baseConocimientoAC[claseDetectada]) return;
+
+            if (claseDetectada !== ultimaFaseProcesada) {
+                ultimaFaseProcesada = claseDetectada;
+                const regla = baseConocimientoAC[claseDetectada];
+
+                txtTituloFase.innerText = regla.titulo;
+                txtDetalleFase.innerText = regla.descripcion;
+                lblFase.innerText = regla.faseNombre + " (Clase " + claseDetectada + ")";
+                txtRecordatorio.innerHTML = "<p>" + regla.recordatorio + "</p>";
+
+                actualizarServoVirtual(regla.angulo);
+
+                try {
+                    if (typeof IdArduino !== 'undefined' && IdArduino.enviar && arduinoConectado) {
+                        IdArduino.enviar("%d".printf(regla.angulo));
+                    }
+                } catch (e) {
+                    console.log("Modo simulación activo.");
+                }
+            }
+        }
+
+        function actualizarServoVirtual(grados) {
+            lblAnguloSimulado.innerText = grados + "°";
+            const aguja = document.getElementById("agujaServo");
+            const rotacion = grados - 90;
+            aguja.style.transform = `translateX(-50%) rotate(${rotacion}deg)`;
+        }
+
+        // =====================================================================
+        // CÓDIGO PUNTO D (SISTEMA EXPERTO ADIVINADOR Y APRENDIZ CON IDBSTORAGE)
+        // =====================================================================
+        let _baseDatosD = idbStorage("base_sistema_experto_d");
+        
+        let _arbolInicialD = {
+            pregunta: "¿La planta se encuentra enterrada o recién abriéndose en la tierra?",
+            si: {
+                nombre: "Fase 0 - Semilla / Germinación",
+                luz: "Baja (Lugar templado y protegido)",
+                agua: "Humedad en sustrato constante sin anegar",
+                tipo: "Etapa Inicial",
+                informe: "En esta etapa la semilla absorbe agua para romper la cubierta y emitir la radícula. No requiere sol directo aún."
+            },
+            no: {
+                pregunta: "¿La planta ya presenta sus primeras flores o frutos estructurados?",
+                si: {
+                    nombre: "Fase 3 - Planta Adulta",
+                    luz: "Alta (Sol directo 6 a 8hs al día)",
+                    agua: "Moderada a Alta según especie",
+                    tipo: "Etapa Madura",
+                    informe: "Madurez biológica alcanzada. Requiere nutrientes para sostener la floración."
+                },
+                no: {
+                    pregunta: "¿Es una planta de interior que se adapta a poca luz directa?",
+                    si: {
+                        nombre: "Planta de Interior (Ej: Potus / Lengua de Suegra)",
+                        luz: "Luz solar indirecta o filtrada",
+                        agua: "Moderada (Riego solo al secarse el sustrato superior)",
+                        tipo: "Planta de Sombra",
+                        informe: "Ideal para ambientes cerrados. Exponerla a sol directo puede quemar la lámina foliar."
+                    },
+                    no: {
+                        nombre: "Planta Exterior Vegetativa (Brote / Joven)",
+                        luz: "Moderada a Alta",
+                        agua: "Regular",
+                        tipo: "Etapa de Crecimiento",
+                        informe: "Crecimiento de hojas verdaderas y tallos. Requiere buena ventilación y luminosidad."
+                    }
+                }
+            }
+        };
+
+        let _arbolConocimientoD = null;
+
+        _baseDatosD.getItem("arbol_plantas").then(function(_datosRecuperados) {
+            _arbolConocimientoD = _datosRecuperados || _arbolInicialD;
+            fnActualizarVistaConocimientoD();
+        });
+
+        async function fnIniciarInferenciaD() {
+            if (!_arbolConocimientoD) return;
+
+            let _nodoActual = _arbolConocimientoD;
+            let _padre = null;
+            let _ramaProcedencia = "";
+
+            while (_nodoActual.pregunta) {
+                let _resp = await Preguntar.si(_nodoActual.pregunta, {
+                    titulo: "Diagnóstico Punto D",
+                    movible: true,
+                    hablar: true
+                });
+
+                if (_resp.error) return;
+
+                _padre = _nodoActual;
+                if (_resp === true) {
+                    _ramaProcedencia = "si";
+                    _nodoActual = _nodoActual.si;
+                } else {
+                    _ramaProcedencia = "no";
+                    _nodoActual = _nodoActual.no;
+                }
+            }
+
+            let _confirmacion = await Preguntar.si(
+                "¿Tu planta o etapa corresponde a: %s?".printf(_nodoActual.nombre),
+                { titulo: "¿Adiviné?", hablar: true, movible: true }
+            );
+
+            if (_confirmacion === true) {
+                await Mostrar.cartel("¡Genial! Diagnóstico confirmado.", { hablar: true });
+                fnGenerarInformeCompletoD(_nodoActual);
+            } else {
+                await fnAprenderNuevoConocimientoD(_padre, _ramaProcedencia, _nodoActual);
+            }
+        }
+
+        async function fnAprenderNuevoConocimientoD(_nodoPadre, _rama, _nodoHojaAnterior) {
+            await Mostrar.cartel("No pude acertar. ¡Ayudame a aprender!", { titulo: "Modo Aprendizaje", hablar: true });
+
+            let _nuevoNombre = await Preguntar.texto("¿Qué tipo de planta o etapa era exactamente?", {
+                titulo: "Nuevo Nombre", hablar: true, escuchar: true
+            });
+            if (_nuevoNombre.error || !_nuevoNombre.trim()) return;
+
+            let _nuevaPregunta = await Preguntar.texto(
+                "Escribí una pregunta de SÍ o NO que diferencie a '%s' de '%s':".printf(_nuevoNombre, _nodoHojaAnterior.nombre),
+                { titulo: "Pregunta Diferenciadora", hablar: true, escuchar: true }
+            );
+            if (_nuevaPregunta.error || !_nuevaPregunta.trim()) return;
+
+            let _respParaNuevo = await Preguntar.si(
+                "Para la planta/etapa '%s', ¿la respuesta a esa pregunta es SÍ?".printf(_nuevoNombre),
+                { titulo: "Confirmar Respuesta", hablar: true }
+            );
+
+            let _nuevoLuz = await Preguntar.texto("¿Qué necesidad de luz tiene? (Ej: Sol directo / Sombra):", { hablar: true });
+            let _nuevoAgua = await Preguntar.texto("¿Qué necesidad de agua requiere? (Ej: Alta / Moderada):", { hablar: true });
+            let _nuevoInforme = await Preguntar.texto("Escribí un breve consejo de cuidado:", { hablar: true });
+
+            let _nuevoNodoPlanta = {
+                nombre: _nuevoNombre,
+                luz: _nuevoLuz || "Por definir",
+                agua: _nuevoAgua || "Por definir",
+                tipo: "Planta / Etapa Incorporada",
+                informe: _nuevoInforme || "Sin descripción adicional."
+            };
+
+            let _nodoDivisor = {
+                pregunta: _nuevaPregunta,
+                si: _respParaNuevo ? _nuevoNodoPlanta : _nodoHojaAnterior,
+                no: _respParaNuevo ? _nodoHojaAnterior : _nuevoNodoPlanta
+            };
+
+            if (_nodoPadre) {
+                _nodoPadre[_rama] = _nodoDivisor;
+            } else {
+                _arbolConocimientoD = _nodoDivisor;
+            }
+
+            await _baseDatosD.setItem("arbol_plantas", _arbolConocimientoD);
+            await Mostrar.cartel("¡Nuevo conocimiento guardado con éxito!", { titulo: "Aprendizaje Completo", hablar: true });
+            
+            fnActualizarVistaConocimientoD();
+            fnGenerarInformeCompletoD(_nuevoNodoPlanta);
+        }
+
+        function fnGenerarInformeCompletoD(_datosPlanta) {
+            idInformeD.innerHTML = `
+                <div class="informe-d">
+                    <h4>Informe de Diagnóstico: ${_datosPlanta.nombre}</h4>
+                    <p><strong>Tipo / Clasificación:</strong> ${_datosPlanta.tipo}</p>
+                    <p><strong>Requerimiento de Luz:</strong> ${_datosPlanta.luz}</p>
+                    <p><strong>Requerimiento de Agua:</strong> ${_datosPlanta.agua}</p>
+                    <hr>
+                    <p><strong>Informe Pedagógico y Recomendaciones:</strong></p>
+                    <p>${_datosPlanta.informe}</p>
+                </div>
+            `;
+        }
+
+        function fnActualizarVistaConocimientoD() {
+            let _listaPlantas = [];
+            
+            function _recorrer(_nodo) {
+                if (_nodo.pregunta) {
+                    _recorrer(_nodo.si);
+                    _recorrer(_nodo.no);
+                } else if (_nodo.nombre) {
+                    _listaPlantas.push(_nodo.nombre);
+                }
+            }
+            
+            _recorrer(_arbolConocimientoD);
+
+            idHistorialD.innerHTML = `
+                <p><strong>Etapas y plantas registradas en la Base de Datos (${_listaPlantas.length}):</strong></p>
+                <ul>
+                    ${_listaPlantas.map(p => `<li>${p}</li>`).join('')}
+                </ul>
+            `;
+        }
+    </script>
+</body>
+</html>

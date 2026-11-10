@@ -1,0 +1,25 @@
+1. Esquema del Prototipo en Wokwi / Arduino (diagram.json)
+El circuito cuenta con:
+Arduino UNO.   
+Servomotor (Pin 11): Mueve la aguja/indicador físico del nivel de crecimiento o estado de la maceta[cite: 1, 2].
+Buzzer o LED (Pin 13): Alerta sonora/visual para los recordatorios de cuidado/luz/limpieza[cite: 1, 2].
+Sensor de Humedad / Presencia simulado (Pin 2): Registra si la maceta está colocada o detecta interacción.   
+
+JSON{
+  "version": 1,
+  "author": "Lautaro Vallejos",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-uno", "id": "uno", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-servo", "id": "servo1", "top": 26.8, "left": -67.2, "attrs": {} },
+    { "type": "wokwi-buzzer", "id": "buzzer1", "top": 120, "left": 150, "attrs": {} }
+  ],
+  "connections": [
+    [ "servo1:GND", "uno:GND.2", "black", [] ],
+    [ "servo1:V+", "uno:5V", "red", [] ],
+    [ "servo1:PWM", "uno:11", "green", [] ],
+    [ "buzzer1:1", "uno:GND.1", "black", [] ],
+    [ "buzzer1:2", "uno:13", "red", [] ]
+  ],
+  "dependencies": {}
+}
